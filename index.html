@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Simple YouTube Downloader</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    max-width: 640px;
+    margin: 60px auto;
+    padding: 0 20px;
+    line-height: 1.5;
+  }
+  h1 { font-size: 1.4rem; }
+  form { display: flex; gap: 8px; margin-bottom: 24px; }
+  input[type="text"] {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid #999;
+    border-radius: 6px;
+    font-size: 1rem;
+  }
+  button {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    background: #222;
+    color: #fff;
+    cursor: pointer;
+    font-size: 1rem;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  #result { display: none; }
+  #result img { width: 100%; border-radius: 8px; margin-bottom: 12px; }
+  .format-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+  .format-row a {
+    background: #2563eb;
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 0.9rem;
+  }
+  #error { color: #c00; margin-top: 8px; }
+  #status { color: #666; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+
+<h1>Simple YouTube Downloader</h1>
+<p style="color:#666; font-size:0.9rem;">
+  For personal use with content you have the right to download (your own videos,
+  Creative Commons content, etc.). Respect copyright and YouTube's Terms of Service.
+</p>
+
+<form id="lookup-form">
+  <input type="text" id="url" placeholder="Paste a YouTube video URL" required />
+  <button type="submit" id="lookup-btn">Look up</button>
+</form>
+
+<p id="status"></p>
+<p id="error"></p>
+
+<div id="result">
+  <img id="thumb" alt="Video thumbnail" />
+  <h2 id="title"></h2>
+  <p id="author"></p>
+  <div id="formats"></div>
+</div>
+
+<script>
+const form = document.getElementById('lookup-form');
+const urlInput = document.getElementById('url');
+const lookupBtn = document.getElementById('lookup-btn');
+const statusEl = document.getElementById('status');
+const errorEl = document.getElementById('error');
+const resultEl = document.getElementById('result');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  errorEl.textContent = '';
+  resultEl.style.display = 'none';
+  statusEl.textContent = 'Looking up video...';
+  lookupBtn.disabled = true;
+
+  const url = urlInput.value.trim();
+
+  try {
+    const res = await fetch(`/api/info?url=${encodeURIComponent(url)}`);
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error || 'Something went wrong.');
+
+    document.getElementById('thumb').src = data.thumbnail || '';
+    document.getElementById('title').textContent = data.title;
+    document.getElementById('author').textContent = `by ${data.author}`;
+
+    const formatsEl = document.getElementById('formats');
+    formatsEl.innerHTML = '';
+
+    if (!data.formats.length) {
+      formatsEl.textContent = 'No downloadable formats found for this video.';
+    } else {
+      data.formats
+        .sort((a, b) => parseInt(b.qualityLabel) - parseInt(a.qualityLabel))
+        .forEach((f) => {
+          const row = document.createElement('div');
+          row.className = 'format-row';
+          row.innerHTML = `
+            <span>${f.qualityLabel} MP4 ${f.approxSizeMB ? `(~${f.approxSizeMB} MB)` : ''}</span>
+            <a href="/api/download?url=${encodeURIComponent(url)}&itag=${f.itag}">Download</a>
+          `;
+          formatsEl.appendChild(row);
+        });
+    }
+
+    resultEl.style.display = 'block';
+    statusEl.textContent = '';
+  } catch (err) {
+    errorEl.textContent = err.message;
+    statusEl.textContent = '';
+  } finally {
+    lookupBtn.disabled = false;
+  }
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "ytdl-site",
+  "version": "1.0.0",
+  "description": "Simple website to fetch YouTube video info and download it using ytdl-core",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@distube/ytdl-core": "^4.14.4",
+    "express": "^4.19.2"
+  }
+}
