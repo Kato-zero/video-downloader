@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Simple YouTube Downloader</title>
+<title>YouTube Downloader</title>
 <style>
   :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
   body {
     font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
     max-width: 640px;
@@ -14,6 +15,14 @@
     line-height: 1.5;
   }
   h1 { font-size: 1.4rem; }
+  .notice {
+    background: #fef3c7;
+    border: 1px solid #f59e0b;
+    border-radius: 6px;
+    padding: 12px;
+    font-size: 0.85rem;
+    margin-bottom: 24px;
+  }
   form { display: flex; gap: 8px; margin-bottom: 24px; }
   input[type="text"] {
     flex: 1;
@@ -57,11 +66,13 @@
 </head>
 <body>
 
-<h1>Simple YouTube Downloader</h1>
-<p style="color:#666; font-size:0.9rem;">
-  For personal use with content you have the right to download (your own videos,
-  Creative Commons content, etc.). Respect copyright and YouTube's Terms of Service.
-</p>
+<h1>YouTube Downloader</h1>
+
+<div class="notice">
+  <strong>Important:</strong> Only download content you have the right to download
+  (your own videos, Creative Commons content, etc.). Respect copyright and YouTube's
+  Terms of Service. This tool is for personal use only.
+</div>
 
 <form id="lookup-form">
   <input type="text" id="url" placeholder="Paste a YouTube video URL" required />
@@ -86,6 +97,18 @@ const statusEl = document.getElementById('status');
 const errorEl = document.getElementById('error');
 const resultEl = document.getElementById('result');
 
+const qualityRank = (label) => {
+  const n = parseInt(label, 10);
+  return Number.isFinite(n) ? n : 0;
+};
+
+// Escape HTML to prevent XSS from video titles
+const escapeHtml = (str) => {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+};
+
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   errorEl.textContent = '';
@@ -97,28 +120,31 @@ form.addEventListener('submit', async (e) => {
 
   try {
     const res = await fetch(`/api/info?url=${encodeURIComponent(url)}`);
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
 
     if (!res.ok) throw new Error(data.error || 'Something went wrong.');
 
     document.getElementById('thumb').src = data.thumbnail || '';
-    document.getElementById('title').textContent = data.title;
-    document.getElementById('author').textContent = `by ${data.author}`;
+    document.getElementById('title').textContent = data.title || '';
+    document.getElementById('author').textContent = data.author ? `by ${data.author}` : '';
 
     const formatsEl = document.getElementById('formats');
     formatsEl.innerHTML = '';
 
-    if (!data.formats.length) {
+    const formats = Array.isArray(data.formats) ? data.formats : [];
+
+    if (!formats.length) {
       formatsEl.textContent = 'No downloadable formats found for this video.';
     } else {
-      data.formats
-        .sort((a, b) => parseInt(b.qualityLabel) - parseInt(a.qualityLabel))
+      formats
+        .slice()
+        .sort((a, b) => qualityRank(b.qualityLabel) - qualityRank(a.qualityLabel))
         .forEach((f) => {
           const row = document.createElement('div');
           row.className = 'format-row';
           row.innerHTML = `
-            <span>${f.qualityLabel} MP4 ${f.approxSizeMB ? `(~${f.approxSizeMB} MB)` : ''}</span>
-            <a href="/api/download?url=${encodeURIComponent(url)}&itag=${f.itag}">Download</a>
+            <span>${escapeHtml(f.qualityLabel)} MP4 ${f.approxSizeMB ? `(~${escapeHtml(f.approxSizeMB)} MB)` : ''}</span>
+            <a href="/api/download?url=${encodeURIComponent(url)}&itag=${encodeURIComponent(f.itag)}">Download</a>
           `;
           formatsEl.appendChild(row);
         });
