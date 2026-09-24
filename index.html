@@ -158,6 +158,16 @@ form.addEventListener('submit', async (e) => {
   } finally {
     lookupBtn.disabled = false;
   }
+  app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      imgSrc: ["'self'", "https://i.ytimg.com", "https://img.youtube.com"],
+      scriptSrc: ["'self'", "'sha256-78aGMUiliPPs7B2LoaZPosmMDsdWosQPo2zy5T/N+u0='"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+    },
+  },
+}));
 });
 </script>
 
